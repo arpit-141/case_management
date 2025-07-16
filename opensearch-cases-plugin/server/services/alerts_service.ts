@@ -205,6 +205,68 @@ export class AlertsService {
     return await this.createAlert(processedAlert);
   }
 
+  async acknowledgeAlert(id: string): Promise<Alert> {
+    return await this.updateAlert(id, { status: 'acknowledged' });
+  }
+
+  async completeAlert(id: string): Promise<Alert> {
+    return await this.updateAlert(id, { status: 'completed' });
+  }
+
+  async createCaseFromAlert(alertId: string, caseData: any): Promise<any> {
+    try {
+      // This method would need to interact with the CasesService
+      // For now, we'll throw an error indicating this needs to be implemented
+      throw new Error('createCaseFromAlert method needs to be implemented with CasesService integration');
+    } catch (error) {
+      this.logger.error('Error creating case from alert:', error);
+      throw error;
+    }
+  }
+
+  async getAlertStats(query: any): Promise<any> {
+    try {
+      const response = await this.opensearchClient.search({
+        index: this.ALERTS_INDEX,
+        body: {
+          size: 0,
+          aggs: {
+            total_alerts: { value_count: { field: 'id' } },
+            status_breakdown: {
+              terms: { field: 'status' },
+            },
+            severity_breakdown: {
+              terms: { field: 'severity' },
+            },
+            alerts_over_time: {
+              date_histogram: {
+                field: 'created_at',
+                calendar_interval: '1d',
+              },
+            },
+          },
+        },
+      });
+
+      const aggs = response.body.aggregations;
+      return {
+        total_alerts: aggs.total_alerts.value,
+        status_breakdown: aggs.status_breakdown.buckets.reduce((acc: any, bucket: any) => {
+          acc[bucket.key] = bucket.doc_count;
+          return acc;
+        }, {}),
+        severity_breakdown: aggs.severity_breakdown.buckets.reduce((acc: any, bucket: any) => {
+          acc[bucket.key] = bucket.doc_count;
+          return acc;
+        }, {}),
+        alerts_over_time: aggs.alerts_over_time.buckets,
+      };
+    } catch (error) {
+      this.logger.error('Error getting alert stats:', error);
+      throw error;
+    }
+  }
+
   private mapSeverity(severity: any): 'low' | 'medium' | 'high' | 'critical' {
     if (typeof severity === 'string') {
       const lowerSeverity = severity.toLowerCase();
