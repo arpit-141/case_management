@@ -948,6 +948,201 @@ async def delete_file(file_id: str):
         await update_case_counts(case_id)
         return {"message": "File deleted successfully"}
 
+# Alert Management Routes
+@api_router.post("/alerts", response_model=Alert)
+async def create_alert(alert: AlertCreate):
+    alert_obj = Alert(**alert.dict())
+    
+    if USE_OPENSEARCH:
+        try:
+            await run_in_thread(
+                client.index,
+                index=ALERTS_INDEX,
+                id=alert_obj.id,
+                body=alert_obj.dict()
+            )
+            return alert_obj
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error creating alert: {str(e)}")
+    else:
+        await db[ALERTS_INDEX].insert_one(alert_obj.dict())
+        return alert_obj
+
+@api_router.get("/alerts", response_model=List[Alert])
+async def get_alerts(
+    status: Optional[AlertStatus] = None,
+    severity: Optional[AlertSeverity] = None,
+    limit: int = Query(50, le=100),
+    offset: int = Query(0, ge=0)
+):
+    if USE_OPENSEARCH:
+        try:
+            query = {"match_all": {}}
+            
+            # Build filters
+            filters = []
+            if status:
+                filters.append({"term": {"status": status}})
+            if severity:
+                filters.append({"term": {"severity": severity}})
+            
+            if filters:
+                query = {"bool": {"must": filters}}
+            
+            response = await run_in_thread(
+                client.search,
+                index=ALERTS_INDEX,
+                body={
+                    "query": query,
+                    "sort": [{"created_at": {"order": "desc"}}],
+                    "from": offset,
+                    "size": limit
+                }
+            )
+            
+            alerts = [Alert(**hit['_source']) for hit in response['hits']['hits']]
+            return alerts
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error retrieving alerts: {str(e)}")
+    else:
+        query = {}
+        if status:
+            query["status"] = status
+        if severity:
+            query["severity"] = severity
+        
+        alerts = await db[ALERTS_INDEX].find(query).sort("created_at", -1).skip(offset).limit(limit).to_list(limit)
+        return [Alert(**alert) for alert in alerts]
+
+@api_router.get("/alerts/{alert_id}", response_model=Alert)
+async def get_alert(alert_id: str):
+    if USE_OPENSEARCH:
+        try:
+            response = await run_in_thread(
+                client.search,
+                index=ALERTS_INDEX,
+                body={"query": {"term": {"id": alert_id}}}
+            )
+            
+            if response['hits']['total']['value'] == 0:
+                raise HTTPException(status_code=404, detail="Alert not found")
+            
+            return Alert(**response['hits']['hits'][0]['_source'])
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(status_code=500, detail=f"Error retrieving alert: {str(e)}")
+    else:
+        alert = await db[ALERTS_INDEX].find_one({"id": alert_id})
+        if not alert:
+            raise HTTPException(status_code=404, detail="Alert not found")
+        return Alert(**alert)
+
+@api_router.put("/alerts/{alert_id}/acknowledge")
+async def acknowledge_alert(alert_id: str):
+    update_data = {
+        "status": AlertStatus.ACKNOWLEDGED,
+        "acknowledged_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
+    
+    if USE_OPENSEARCH:
+        try:
+            await run_in_thread(
+                client.update,
+                index=ALERTS_INDEX,
+                id=alert_id,
+                body={"doc": update_data}
+            )
+            return await get_alert(alert_id)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error acknowledging alert: {str(e)}")
+    else:
+        result = await db[ALERTS_INDEX].update_one(
+            {"id": alert_id},
+            {"$set": update_data}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Alert not found")
+        
+        return await get_alert(alert_id)
+
+@api_router.put("/alerts/{alert_id}/complete")
+async def complete_alert(alert_id: str):
+    update_data = {
+        "status": AlertStatus.COMPLETED,
+        "completed_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
+    
+    if USE_OPENSEARCH:
+        try:
+            await run_in_thread(
+                client.update,
+                index=ALERTS_INDEX,
+                id=alert_id,
+                body={"doc": update_data}
+            )
+            return await get_alert(alert_id)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error completing alert: {str(e)}")
+    else:
+        result = await db[ALERTS_INDEX].update_one(
+            {"id": alert_id},
+            {"$set": update_data}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Alert not found")
+        
+        return await get_alert(alert_id)
+
+@api_router.post("/alerts/{alert_id}/create-case", response_model=Case)
+async def create_case_from_alert(alert_id: str, case_data: dict):
+    # Get the alert
+    alert = await get_alert(alert_id)
+    
+    # Create case with alert information
+    case_create_data = CaseCreate(
+        title=case_data.get("title", f"Case for Alert: {alert.title}"),
+        description=case_data.get("description", f"Auto-generated case for alert: {alert.description}"),
+        priority=CasePriority.HIGH if alert.severity == AlertSeverity.CRITICAL else CasePriority.MEDIUM,
+        tags=case_data.get("tags", ["auto-created", "alert"]),
+        created_by=case_data.get("created_by", "system"),
+        created_by_name=case_data.get("created_by_name", "System"),
+        alert_id=alert_id,
+        opensearch_query=alert.opensearch_query,
+        visualization_ids=[alert.visualization_id] if alert.visualization_id else []
+    )
+    
+    # Create the case
+    case = await create_case(case_create_data)
+    
+    # Update alert with case ID
+    update_data = {
+        "case_id": case.id,
+        "updated_at": datetime.utcnow()
+    }
+    
+    if USE_OPENSEARCH:
+        try:
+            await run_in_thread(
+                client.update,
+                index=ALERTS_INDEX,
+                id=alert_id,
+                body={"doc": update_data}
+            )
+        except Exception as e:
+            logger.error(f"Error updating alert with case ID: {e}")
+    else:
+        await db[ALERTS_INDEX].update_one(
+            {"id": alert_id},
+            {"$set": update_data}
+        )
+    
+    return case
+
 # Statistics Routes
 @api_router.get("/stats")
 async def get_stats():
