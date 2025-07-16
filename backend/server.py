@@ -1393,11 +1393,11 @@ async def initialize_opensearch_indices():
     for index_name, mapping in indices_mappings.items():
         try:
             # Check if index exists
-            exists = await run_in_thread(client.indices.exists, index=index_name)
+            exists = await run_in_thread(lambda: client.indices.exists(index=index_name))
             
             if not exists:
                 # Create index with mapping
-                await run_in_thread(client.indices.create, index=index_name, body=mapping)
+                await run_in_thread(lambda: client.indices.create(index=index_name, body=mapping))
                 logger.info(f"Created OpenSearch index: {index_name}")
             else:
                 logger.info(f"OpenSearch index already exists: {index_name}")
