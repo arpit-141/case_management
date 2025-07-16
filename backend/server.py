@@ -1090,14 +1090,126 @@ async def startup_event():
     try:
         if USE_OPENSEARCH:
             logger.info("Using OpenSearch as database")
-            # Initialize OpenSearch indices would go here
+            
+            # Initialize OpenSearch indices
+            await initialize_opensearch_indices()
+            
+            # Test OpenSearch connection
+            info = await run_in_thread(client.info)
+            logger.info(f"Connected to OpenSearch cluster: {info.get('cluster_name', 'unknown')}")
         else:
             logger.info("Using MongoDB as database")
-            # MongoDB doesn't require index initialization
+            # Test MongoDB connection
+            await db.command("ping")
         
         logger.info(f"Backend initialized successfully with {DATABASE_TYPE.upper()}")
     except Exception as e:
         logger.error(f"Failed to initialize backend: {e}")
+        raise
+
+async def initialize_opensearch_indices():
+    """Initialize OpenSearch indices with proper mappings"""
+    indices_mappings = {
+        CASES_INDEX: {
+            "mappings": {
+                "properties": {
+                    "id": {"type": "keyword"},
+                    "title": {"type": "text", "analyzer": "standard"},
+                    "description": {"type": "text", "analyzer": "standard"},
+                    "status": {"type": "keyword"},
+                    "priority": {"type": "keyword"},
+                    "tags": {"type": "keyword"},
+                    "assigned_to": {"type": "keyword"},
+                    "assigned_to_name": {"type": "text"},
+                    "created_by": {"type": "keyword"},
+                    "created_by_name": {"type": "text"},
+                    "created_at": {"type": "date"},
+                    "updated_at": {"type": "date"},
+                    "closed_at": {"type": "date"},
+                    "comments_count": {"type": "integer"},
+                    "attachments_count": {"type": "integer"},
+                    "alert_id": {"type": "keyword"},
+                    "opensearch_query": {"type": "object"},
+                    "visualization_ids": {"type": "keyword"}
+                }
+            }
+        },
+        COMMENTS_INDEX: {
+            "mappings": {
+                "properties": {
+                    "id": {"type": "keyword"},
+                    "case_id": {"type": "keyword"},
+                    "author": {"type": "keyword"},
+                    "author_name": {"type": "text"},
+                    "content": {"type": "text", "analyzer": "standard"},
+                    "comment_type": {"type": "keyword"},
+                    "created_at": {"type": "date"},
+                    "updated_at": {"type": "date"}
+                }
+            }
+        },
+        FILES_INDEX: {
+            "mappings": {
+                "properties": {
+                    "id": {"type": "keyword"},
+                    "filename": {"type": "keyword"},
+                    "original_filename": {"type": "text"},
+                    "file_size": {"type": "integer"},
+                    "mime_type": {"type": "keyword"},
+                    "uploaded_by": {"type": "keyword"},
+                    "uploaded_at": {"type": "date"},
+                    "case_id": {"type": "keyword"}
+                }
+            }
+        },
+        USERS_INDEX: {
+            "mappings": {
+                "properties": {
+                    "id": {"type": "keyword"},
+                    "username": {"type": "keyword"},
+                    "email": {"type": "keyword"},
+                    "full_name": {"type": "text"},
+                    "created_at": {"type": "date"}
+                }
+            }
+        },
+        ALERTS_INDEX: {
+            "mappings": {
+                "properties": {
+                    "id": {"type": "keyword"},
+                    "title": {"type": "text", "analyzer": "standard"},
+                    "description": {"type": "text", "analyzer": "standard"},
+                    "severity": {"type": "keyword"},
+                    "status": {"type": "keyword"},
+                    "monitor_id": {"type": "keyword"},
+                    "trigger_id": {"type": "keyword"},
+                    "created_at": {"type": "date"},
+                    "updated_at": {"type": "date"},
+                    "acknowledged_at": {"type": "date"},
+                    "completed_at": {"type": "date"},
+                    "case_id": {"type": "keyword"},
+                    "opensearch_query": {"type": "object"},
+                    "visualization_id": {"type": "keyword"}
+                }
+            }
+        }
+    }
+    
+    for index_name, mapping in indices_mappings.items():
+        try:
+            # Check if index exists
+            exists = await run_in_thread(client.indices.exists, index=index_name)
+            
+            if not exists:
+                # Create index with mapping
+                await run_in_thread(client.indices.create, index=index_name, body=mapping)
+                logger.info(f"Created OpenSearch index: {index_name}")
+            else:
+                logger.info(f"OpenSearch index already exists: {index_name}")
+                
+        except Exception as e:
+            logger.error(f"Error creating OpenSearch index {index_name}: {e}")
+            raise
 
 @app.on_event("shutdown")
 async def shutdown_event():
