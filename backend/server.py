@@ -15,6 +15,9 @@ import json
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
+ROOT_DIR = Path(__file__).parent
+load_dotenv(ROOT_DIR / '.env')
+
 # Import database clients based on configuration
 USE_OPENSEARCH = os.environ.get('USE_OPENSEARCH', 'false').lower() == 'true'
 
@@ -24,9 +27,6 @@ if USE_OPENSEARCH:
 else:
     from motor.motor_asyncio import AsyncIOMotorClient
     DATABASE_TYPE = "mongodb"
-
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
 
 # Database configuration
 if USE_OPENSEARCH:
