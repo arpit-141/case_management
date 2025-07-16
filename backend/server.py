@@ -652,7 +652,301 @@ async def delete_case(case_id: str):
         
         return {"message": "Case deleted successfully"}
 
-# Additional routes for comments, files, alerts, etc. would follow the same pattern...
+# Comment Management Routes
+@api_router.post("/cases/{case_id}/comments", response_model=Comment)
+async def create_comment(case_id: str, comment: CommentCreate):
+    # Verify case exists
+    case = await get_case_by_id(case_id)
+    
+    comment_obj = Comment(case_id=case_id, **comment.dict())
+    
+    if USE_OPENSEARCH:
+        try:
+            await run_in_thread(
+                client.index,
+                index=COMMENTS_INDEX,
+                id=comment_obj.id,
+                body=comment_obj.dict()
+            )
+            await update_case_counts(case_id)
+            return comment_obj
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error creating comment: {str(e)}")
+    else:
+        await db[COMMENTS_INDEX].insert_one(comment_obj.dict())
+        await update_case_counts(case_id)
+        return comment_obj
+
+@api_router.get("/cases/{case_id}/comments", response_model=List[Comment])
+async def get_case_comments(case_id: str):
+    # Verify case exists
+    case = await get_case_by_id(case_id)
+    
+    if USE_OPENSEARCH:
+        try:
+            response = await run_in_thread(
+                client.search,
+                index=COMMENTS_INDEX,
+                body={
+                    "query": {"term": {"case_id": case_id}},
+                    "sort": [{"created_at": {"order": "asc"}}],
+                    "size": 1000
+                }
+            )
+            comments = [Comment(**hit['_source']) for hit in response['hits']['hits']]
+            return comments
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error retrieving comments: {str(e)}")
+    else:
+        comments = await db[COMMENTS_INDEX].find({"case_id": case_id}).sort("created_at", 1).to_list(1000)
+        return [Comment(**comment) for comment in comments]
+
+@api_router.put("/comments/{comment_id}", response_model=Comment)
+async def update_comment(comment_id: str, content: dict):
+    update_data = {
+        "content": content.get("content"),
+        "updated_at": datetime.utcnow()
+    }
+    
+    if USE_OPENSEARCH:
+        try:
+            # First check if comment exists
+            response = await run_in_thread(
+                client.search,
+                index=COMMENTS_INDEX,
+                body={"query": {"term": {"id": comment_id}}}
+            )
+            
+            if response['hits']['total']['value'] == 0:
+                raise HTTPException(status_code=404, detail="Comment not found")
+            
+            await run_in_thread(
+                client.update,
+                index=COMMENTS_INDEX,
+                id=comment_id,
+                body={"doc": update_data}
+            )
+            
+            # Get updated comment
+            updated_response = await run_in_thread(
+                client.search,
+                index=COMMENTS_INDEX,
+                body={"query": {"term": {"id": comment_id}}}
+            )
+            
+            return Comment(**updated_response['hits']['hits'][0]['_source'])
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(status_code=500, detail=f"Error updating comment: {str(e)}")
+    else:
+        result = await db[COMMENTS_INDEX].update_one(
+            {"id": comment_id},
+            {"$set": update_data}
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Comment not found")
+        
+        comment = await db[COMMENTS_INDEX].find_one({"id": comment_id})
+        return Comment(**comment)
+
+@api_router.delete("/comments/{comment_id}")
+async def delete_comment(comment_id: str):
+    if USE_OPENSEARCH:
+        try:
+            # First check if comment exists and get case_id
+            response = await run_in_thread(
+                client.search,
+                index=COMMENTS_INDEX,
+                body={"query": {"term": {"id": comment_id}}}
+            )
+            
+            if response['hits']['total']['value'] == 0:
+                raise HTTPException(status_code=404, detail="Comment not found")
+            
+            case_id = response['hits']['hits'][0]['_source']['case_id']
+            
+            await run_in_thread(
+                client.delete,
+                index=COMMENTS_INDEX,
+                id=comment_id
+            )
+            
+            await update_case_counts(case_id)
+            return {"message": "Comment deleted successfully"}
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(status_code=500, detail=f"Error deleting comment: {str(e)}")
+    else:
+        comment = await db[COMMENTS_INDEX].find_one({"id": comment_id})
+        if not comment:
+            raise HTTPException(status_code=404, detail="Comment not found")
+        
+        case_id = comment["case_id"]
+        await db[COMMENTS_INDEX].delete_one({"id": comment_id})
+        await update_case_counts(case_id)
+        return {"message": "Comment deleted successfully"}
+
+# File Management Routes
+@api_router.post("/cases/{case_id}/files", response_model=FileAttachment)
+async def upload_file(case_id: str, file: UploadFile = File(...), uploaded_by: str = "anonymous"):
+    # Verify case exists
+    case = await get_case_by_id(case_id)
+    
+    if not file:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+    
+    # Generate unique filename
+    file_id = str(uuid.uuid4())
+    file_extension = file.filename.split('.')[-1] if '.' in file.filename else ''
+    stored_filename = f"{file_id}.{file_extension}" if file_extension else file_id
+    file_path = UPLOAD_DIR / stored_filename
+    
+    try:
+        # Save file to disk
+        async with aiofiles.open(file_path, 'wb') as f:
+            content = await file.read()
+            await f.write(content)
+        
+        # Create file attachment record
+        file_obj = FileAttachment(
+            filename=stored_filename,
+            original_filename=file.filename,
+            file_size=len(content),
+            mime_type=file.content_type or 'application/octet-stream',
+            uploaded_by=uploaded_by,
+            case_id=case_id
+        )
+        
+        if USE_OPENSEARCH:
+            await run_in_thread(
+                client.index,
+                index=FILES_INDEX,
+                id=file_obj.id,
+                body=file_obj.dict()
+            )
+        else:
+            await db[FILES_INDEX].insert_one(file_obj.dict())
+        
+        await update_case_counts(case_id)
+        return file_obj
+        
+    except Exception as e:
+        # Clean up file if database operation fails
+        if file_path.exists():
+            file_path.unlink()
+        raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")
+
+@api_router.get("/cases/{case_id}/files", response_model=List[FileAttachment])
+async def get_case_files(case_id: str):
+    # Verify case exists
+    case = await get_case_by_id(case_id)
+    
+    if USE_OPENSEARCH:
+        try:
+            response = await run_in_thread(
+                client.search,
+                index=FILES_INDEX,
+                body={
+                    "query": {"term": {"case_id": case_id}},
+                    "sort": [{"uploaded_at": {"order": "desc"}}],
+                    "size": 1000
+                }
+            )
+            files = [FileAttachment(**hit['_source']) for hit in response['hits']['hits']]
+            return files
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error retrieving files: {str(e)}")
+    else:
+        files = await db[FILES_INDEX].find({"case_id": case_id}).sort("uploaded_at", -1).to_list(1000)
+        return [FileAttachment(**file) for file in files]
+
+@api_router.get("/files/{file_id}/download")
+async def download_file(file_id: str):
+    if USE_OPENSEARCH:
+        try:
+            response = await run_in_thread(
+                client.search,
+                index=FILES_INDEX,
+                body={"query": {"term": {"id": file_id}}}
+            )
+            
+            if response['hits']['total']['value'] == 0:
+                raise HTTPException(status_code=404, detail="File not found")
+            
+            file_data = FileAttachment(**response['hits']['hits'][0]['_source'])
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(status_code=500, detail=f"Error retrieving file: {str(e)}")
+    else:
+        file_record = await db[FILES_INDEX].find_one({"id": file_id})
+        if not file_record:
+            raise HTTPException(status_code=404, detail="File not found")
+        file_data = FileAttachment(**file_record)
+    
+    file_path = UPLOAD_DIR / file_data.filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    
+    return FileResponse(
+        path=file_path,
+        filename=file_data.original_filename,
+        media_type=file_data.mime_type
+    )
+
+@api_router.delete("/files/{file_id}")
+async def delete_file(file_id: str):
+    if USE_OPENSEARCH:
+        try:
+            response = await run_in_thread(
+                client.search,
+                index=FILES_INDEX,
+                body={"query": {"term": {"id": file_id}}}
+            )
+            
+            if response['hits']['total']['value'] == 0:
+                raise HTTPException(status_code=404, detail="File not found")
+            
+            file_data = FileAttachment(**response['hits']['hits'][0]['_source'])
+            case_id = file_data.case_id
+            
+            await run_in_thread(
+                client.delete,
+                index=FILES_INDEX,
+                id=file_id
+            )
+            
+            # Remove file from disk
+            file_path = UPLOAD_DIR / file_data.filename
+            if file_path.exists():
+                file_path.unlink()
+            
+            await update_case_counts(case_id)
+            return {"message": "File deleted successfully"}
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise e
+            raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
+    else:
+        file_record = await db[FILES_INDEX].find_one({"id": file_id})
+        if not file_record:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        file_data = FileAttachment(**file_record)
+        case_id = file_data.case_id
+        
+        await db[FILES_INDEX].delete_one({"id": file_id})
+        
+        # Remove file from disk
+        file_path = UPLOAD_DIR / file_data.filename
+        if file_path.exists():
+            file_path.unlink()
+        
+        await update_case_counts(case_id)
+        return {"message": "File deleted successfully"}
 
 # Statistics Routes
 @api_router.get("/stats")
