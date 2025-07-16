@@ -230,6 +230,119 @@ export class VisualizationsService {
     };
   }
 
+  async getVisualizationById(id: string): Promise<Visualization> {
+    return await this.getVisualization(id);
+  }
+
+  async getVisualizations(query: any): Promise<Visualization[]> {
+    try {
+      const response = await this.opensearchClient.search({
+        index: '.kibana',
+        body: {
+          query: {
+            bool: {
+              must: [
+                { term: { type: 'visualization' } },
+              ],
+            },
+          },
+          from: query.offset || 0,
+          size: query.limit || 50,
+        },
+      });
+
+      return response.body.hits.hits.map((hit: any) => {
+        const vizData = hit._source.visualization;
+        return {
+          id: hit._id.replace('visualization:', ''),
+          title: vizData.title,
+          type: vizData.visState ? JSON.parse(vizData.visState).type : 'unknown',
+          query: vizData.kibanaSavedObjectMeta ? JSON.parse(vizData.kibanaSavedObjectMeta.searchSourceJSON) : {},
+          config: vizData.visState ? JSON.parse(vizData.visState) : {},
+        };
+      });
+    } catch (error) {
+      this.logger.error('Error getting visualizations:', error);
+      throw error;
+    }
+  }
+
+  async createVisualizationForCase(caseId: string, vizData: any): Promise<Visualization> {
+    try {
+      const vizId = `case_${caseId}_${Date.now()}`;
+      const visualization: Visualization = {
+        id: vizId,
+        title: vizData.title,
+        type: vizData.type,
+        query: vizData.query,
+        config: vizData.config,
+      };
+
+      // In a real implementation, this would create a visualization in OpenSearch Dashboards
+      // For now, we'll store it in a custom index
+      await this.opensearchClient.index({
+        index: 'case_visualizations',
+        id: vizId,
+        body: {
+          ...visualization,
+          case_id: caseId,
+          created_at: new Date().toISOString(),
+        },
+      });
+
+      return visualization;
+    } catch (error) {
+      this.logger.error('Error creating visualization for case:', error);
+      throw error;
+    }
+  }
+
+  async getCaseVisualizations(caseId: string): Promise<Visualization[]> {
+    try {
+      const response = await this.opensearchClient.search({
+        index: 'case_visualizations',
+        body: {
+          query: { term: { case_id: caseId } },
+          size: 100,
+        },
+      });
+
+      return response.body.hits.hits.map((hit: any) => {
+        const vizData = hit._source;
+        return {
+          id: vizData.id,
+          title: vizData.title,
+          type: vizData.type,
+          query: vizData.query,
+          config: vizData.config,
+        };
+      });
+    } catch (error) {
+      this.logger.error('Error getting case visualizations:', error);
+      throw error;
+    }
+  }
+
+  async executeOpenSearchQuery(queryData: any): Promise<any> {
+    try {
+      const response = await this.opensearchClient.search({
+        index: queryData.index,
+        body: queryData.query,
+        size: queryData.size || 100,
+        from: queryData.from || 0,
+      });
+
+      return {
+        total: response.body.hits.total.value,
+        hits: response.body.hits.hits,
+        aggregations: response.body.aggregations,
+      };
+    } catch (error) {
+      this.logger.error('Error executing OpenSearch query:', error);
+      throw error;
+    }
+  }
+
   private formatTableData(data: any): any {
     // Format data for tables
     return {
