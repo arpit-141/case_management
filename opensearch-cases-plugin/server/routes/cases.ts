@@ -146,17 +146,8 @@ export function registerCasesRoutes(router: IRouter, casesService: CasesService)
         body: schema.object({
           title: schema.maybe(schema.string()),
           description: schema.maybe(schema.string()),
-          status: schema.maybe(schema.oneOf([
-            schema.literal('open'),
-            schema.literal('in_progress'),
-            schema.literal('closed'),
-          ])),
-          priority: schema.maybe(schema.oneOf([
-            schema.literal('low'),
-            schema.literal('medium'),
-            schema.literal('high'),
-            schema.literal('critical'),
-          ])),
+          status: schema.maybe(schema.oneOf(['open', 'in_progress', 'closed'])),
+          priority: schema.maybe(schema.oneOf(['low', 'medium', 'high', 'critical'])),
           tags: schema.maybe(schema.arrayOf(schema.string())),
           assigned_to: schema.maybe(schema.string()),
           assigned_to_name: schema.maybe(schema.string()),
@@ -164,22 +155,26 @@ export function registerCasesRoutes(router: IRouter, casesService: CasesService)
         }),
       },
     },
-    async (context, request, response) => {
+    async (context: any, request: any, response: any) => {
       try {
-        const case_data = await casesService.updateCase(request.params.id, request.body);
-        return response.ok({
-          body: case_data,
-        });
-      } catch (error) {
-        logger.error('Error updating case:', error);
-        if (error.statusCode === 404) {
+        const { id } = request.params;
+        const updateData = request.body;
+        const result = await casesService.updateCase(id, updateData);
+
+        if (!result) {
           return response.notFound({
             body: { message: 'Case not found' },
           });
         }
+
+        return response.ok({ body: result });
+      } catch (error) {
         return response.customError({
           statusCode: 500,
-          body: { message: 'Error updating case' },
+          body: {
+            message: 'Failed to update case',
+            error: error.message,
+          },
         });
       }
     }
