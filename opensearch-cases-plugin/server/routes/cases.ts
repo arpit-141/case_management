@@ -2,7 +2,7 @@ import { schema } from '../types/opensearch';
 import { IRouter } from '../types/opensearch';
 import { CasesService } from '../services/cases_service';
 
-export function registerCasesRoutes(router: IRouter, { casesService, logger }: ServiceDependencies) {
+export function registerCasesRoutes(router: IRouter, casesService: CasesService) {
   // Create case
   router.post(
     {
