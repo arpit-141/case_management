@@ -34,27 +34,23 @@ yarn install --frozen-lockfile
 # Build the plugin
 echo -e "${YELLOW}Building the plugin...${NC}"
 
-# Create build directory structure
-mkdir -p ${BUILD_DIR}/opensearch-cases-plugin
-mkdir -p ${BUILD_DIR}/opensearch-cases-plugin/public
-mkdir -p ${BUILD_DIR}/opensearch-cases-plugin/server
-
-# Copy plugin manifest
-cp opensearch_dashboards_plugin.json ${BUILD_DIR}/opensearch-cases-plugin/
-cp package.json ${BUILD_DIR}/opensearch-cases-plugin/
+# Copy plugin manifest and essential files directly to build directory
+cp opensearch_dashboards_plugin.json ${BUILD_DIR}/
+cp package.json ${BUILD_DIR}/
+cp README.md ${BUILD_DIR}/
 
 # Compile TypeScript files
 echo -e "${YELLOW}Compiling TypeScript...${NC}"
 npx tsc --build
 
-# Copy built files to build directory
-cp -r public ${BUILD_DIR}/opensearch-cases-plugin/
-cp -r server ${BUILD_DIR}/opensearch-cases-plugin/
+# Copy built files directly to build directory (not in subdirectory)
+cp -r public ${BUILD_DIR}/
+cp -r server ${BUILD_DIR}/
 
-# Create the zip file
+# Create the zip file with files at root level
 echo -e "${YELLOW}Creating distribution zip...${NC}"
 cd ${BUILD_DIR}
-zip -r ../${DIST_DIR}/${ZIP_NAME} opensearch-cases-plugin/
+zip -r ../${DIST_DIR}/${ZIP_NAME} .
 cd ..
 
 # Verify the zip file
@@ -68,7 +64,7 @@ unzip -l ${DIST_DIR}/${ZIP_NAME}
 # Display installation instructions
 echo -e "${GREEN}Installation Instructions:${NC}"
 echo "1. Copy the ${ZIP_NAME} file to your OpenSearch Dashboard server"
-echo "2. Run: ./bin/opensearch-dashboards-plugin install file:///path/to/${ZIP_NAME}"
+echo "2. Run: ./bin/opensearch-dashboards-plugin install file:///path/to/${ZIP_NAME} --allow-root"
 echo "3. Restart OpenSearch Dashboard"
 echo "4. Access the plugin through OpenSearch Dashboard UI"
 
