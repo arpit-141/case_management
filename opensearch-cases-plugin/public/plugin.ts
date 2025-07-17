@@ -1,8 +1,4 @@
-import { CoreSetup, CoreStart, Plugin } from '../../../../src/core/public';
-import { NavigationPublicPluginStart } from '../../../../src/plugins/navigation/public';
-import { DataPublicPluginStart } from '../../../../src/plugins/data/public';
-import { VisualizationsStart } from '../../../../src/plugins/visualizations/public';
-import { DashboardStart } from '../../../../src/plugins/dashboard/public';
+import { CoreSetup, CoreStart, Plugin, NavigationPublicPluginStart, DataPublicPluginStart, VisualizationsStart, DashboardStart } from '../types/opensearch';
 
 export interface OpenSearchCasesPluginSetup {}
 export interface OpenSearchCasesPluginStart {}
@@ -30,7 +26,7 @@ export class OpenSearchCasesPlugin
         order: 2000,
       },
       order: 1000,
-      async mount(params) {
+      async mount(params: any) {
         const { renderApp } = await import('./application');
         const [coreStart, depsStart] = await core.getStartServices();
         return renderApp(coreStart, depsStart as OpenSearchCasesPluginStartDeps, params);
@@ -43,7 +39,7 @@ export class OpenSearchCasesPlugin
         id: 'opensearch_cases',
         title: 'Cases',
         order: 30,
-        async mount(params) {
+        async mount(params: any) {
           const { renderManagementApp } = await import('./management');
           const [coreStart, depsStart] = await core.getStartServices();
           return renderManagementApp(coreStart, depsStart as OpenSearchCasesPluginStartDeps, params);
