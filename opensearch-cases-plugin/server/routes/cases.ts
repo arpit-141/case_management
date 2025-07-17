@@ -111,22 +111,25 @@ export function registerCasesRoutes(router: IRouter, casesService: CasesService)
         }),
       },
     },
-    async (context, request, response) => {
+    async (context: any, request: any, response: any) => {
       try {
-        const case_data = await casesService.getCaseById(request.params.id);
-        return response.ok({
-          body: case_data,
-        });
-      } catch (error) {
-        logger.error('Error getting case:', error);
-        if (error.statusCode === 404) {
+        const { id } = request.params;
+        const result = await casesService.getCaseById(id);
+
+        if (!result) {
           return response.notFound({
             body: { message: 'Case not found' },
           });
         }
+
+        return response.ok({ body: result });
+      } catch (error) {
         return response.customError({
           statusCode: 500,
-          body: { message: 'Error getting case' },
+          body: {
+            message: 'Failed to retrieve case',
+            error: error.message,
+          },
         });
       }
     }
