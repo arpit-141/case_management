@@ -11,34 +11,28 @@ export function registerCasesRoutes(router: IRouter, casesService: CasesService)
         body: schema.object({
           title: schema.string(),
           description: schema.string(),
-          priority: schema.maybe(schema.oneOf([
-            schema.literal('low'),
-            schema.literal('medium'),
-            schema.literal('high'),
-            schema.literal('critical'),
-          ])),
-          tags: schema.maybe(schema.arrayOf(schema.string())),
+          priority: schema.oneOf(['low', 'medium', 'high', 'critical']),
+          tags: schema.arrayOf(schema.string()),
           assigned_to: schema.maybe(schema.string()),
           assigned_to_name: schema.maybe(schema.string()),
-          created_by: schema.string(),
-          created_by_name: schema.string(),
-          alert_id: schema.maybe(schema.string()),
-          opensearch_query: schema.maybe(schema.any()),
+          alert_ids: schema.maybe(schema.arrayOf(schema.string())),
           visualization_ids: schema.maybe(schema.arrayOf(schema.string())),
         }),
       },
     },
-    async (context, request, response) => {
+    async (context: any, request: any, response: any) => {
       try {
-        const case_data = await casesService.createCase(request.body);
-        return response.ok({
-          body: case_data,
-        });
+        const caseData = request.body;
+        const result = await casesService.createCase(caseData);
+
+        return response.ok({ body: result });
       } catch (error) {
-        logger.error('Error creating case:', error);
         return response.customError({
           statusCode: 500,
-          body: { message: 'Error creating case' },
+          body: {
+            message: 'Failed to create case',
+            error: error.message,
+          },
         });
       }
     }
