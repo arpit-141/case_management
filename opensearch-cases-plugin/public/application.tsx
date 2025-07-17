@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { Router } from 'react-router-dom';
 import { I18nProvider } from '@osd/i18n/react';
-import { CoreStart, AppMountParameters } from '../../../src/core/public';
+import { CoreStart, AppMountParameters } from '../../../../src/core/public';
 import { OpenSearchCasesPluginStartDeps } from './plugin';
 import { CasesApp } from './components/CasesApp';
 
