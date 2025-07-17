@@ -1,44 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import {
-  EuiPage,
-  EuiPageBody,
-  EuiPageContent,
-  EuiPageContentBody,
-  EuiPageHeader,
-  EuiPageHeaderSection,
-  EuiTitle,
-  EuiSpacer,
-  EuiButton,
-  EuiFlexGroup,
-  EuiFlexItem,
-  EuiIcon,
-  EuiText,
-  EuiGlobalToastList,
-  EuiButtonIcon,
-  EuiContextMenu,
-  EuiPopover,
-} from '@elastic/eui';
-import { CoreStart } from '../../../../src/core/public';
-import { NavigationPublicPluginStart } from '../../../../src/plugins/navigation/public';
-import { DataPublicPluginStart } from '../../../../src/plugins/data/public';
-import { VisualizationsStart } from '../../../../src/plugins/visualizations/public';
-import { DashboardStart } from '../../../../src/plugins/dashboard/public';
-import { CasesDashboard } from './CasesDashboard';
-import { CaseDetail } from './CaseDetail';
-import { CreateCase } from './CreateCase';
-import { EditCase } from './EditCase';
-import { AlertsManagement } from './AlertsManagement';
-import { CasesProvider } from '../context/CasesContext';
+import { Routes, Route } from 'react-router-dom';
+import { CoreStart, NavigationPublicPluginStart, DataPublicPluginStart, VisualizationsStart, DashboardStart } from '../types/opensearch';
 
-interface CasesAppProps {
+export interface CasesAppProps {
   basename: string;
-  notifications: CoreStart['notifications'];
-  http: CoreStart['http'];
+  notifications: any;
+  http: any;
   navigation: NavigationPublicPluginStart;
   data: DataPublicPluginStart;
   visualizations: VisualizationsStart;
   dashboard: DashboardStart;
+  isManagementApp?: boolean;
 }
 
 export const CasesApp: React.FC<CasesAppProps> = ({
@@ -49,128 +21,58 @@ export const CasesApp: React.FC<CasesAppProps> = ({
   data,
   visualizations,
   dashboard,
+  isManagementApp = false,
 }) => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [toasts, setToasts] = useState<any[]>([]);
+  const [cases, setCases] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const addToast = (toast: any) => {
-    setToasts([...toasts, { ...toast, id: Date.now() }]);
-  };
+  useEffect(() => {
+    // Initialize the app
+    setLoading(false);
+  }, []);
 
-  const removeToast = (id: string) => {
-    setToasts(toasts.filter(toast => toast.id !== id));
-  };
-
-  const contextMenuItems = [
-    {
-      name: 'Cases',
-      icon: 'documents',
-      onClick: () => {
-        setIsMenuOpen(false);
-        window.location.href = `${basename}/cases`;
-      },
-    },
-    {
-      name: 'Alerts',
-      icon: 'alert',
-      onClick: () => {
-        setIsMenuOpen(false);
-        window.location.href = `${basename}/alerts`;
-      },
-    },
-    {
-      name: 'Settings',
-      icon: 'gear',
-      onClick: () => {
-        setIsMenuOpen(false);
-        // Navigate to settings
-      },
-    },
-  ];
+  if (loading) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <div>Loading Cases...</div>
+      </div>
+    );
+  }
 
   return (
-    <CasesProvider
-      http={http}
-      notifications={notifications}
-      data={data}
-      visualizations={visualizations}
-      dashboard={dashboard}
-    >
-      <EuiPage>
-        <EuiPageBody>
-          <EuiPageHeader>
-            <EuiPageHeaderSection>
-              <EuiFlexGroup alignItems="center" gutterSize="m">
-                <EuiFlexItem grow={false}>
-                  <EuiIcon type="documents" size="xl" />
-                </EuiFlexItem>
-                <EuiFlexItem>
-                  <EuiTitle size="l">
-                    <h1>Cases</h1>
-                  </EuiTitle>
-                </EuiFlexItem>
-              </EuiFlexGroup>
-            </EuiPageHeaderSection>
-            <EuiPageHeaderSection>
-              <EuiFlexGroup alignItems="center" gutterSize="s">
-                <EuiFlexItem grow={false}>
-                  <EuiButton
-                    fill
-                    iconType="plus"
-                    href={`${basename}/cases/new`}
-                  >
-                    Create Case
-                  </EuiButton>
-                </EuiFlexItem>
-                <EuiFlexItem grow={false}>
-                  <EuiPopover
-                    button={
-                      <EuiButtonIcon
-                        iconType="boxesVertical"
-                        aria-label="More options"
-                        onClick={() => setIsMenuOpen(!isMenuOpen)}
-                      />
-                    }
-                    isOpen={isMenuOpen}
-                    closePopover={() => setIsMenuOpen(false)}
-                    panelPaddingSize="none"
-                    anchorPosition="downLeft"
-                  >
-                    <EuiContextMenu
-                      initialPanelId={0}
-                      panels={[
-                        {
-                          id: 0,
-                          items: contextMenuItems,
-                        },
-                      ]}
-                    />
-                  </EuiPopover>
-                </EuiFlexItem>
-              </EuiFlexGroup>
-            </EuiPageHeaderSection>
-          </EuiPageHeader>
+    <div style={{ padding: '20px' }}>
+      <h1>OpenSearch Cases Plugin</h1>
+      <p>Welcome to the OpenSearch Cases management system.</p>
+      
+      {isManagementApp && (
+        <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#f5f5f5' }}>
+          <h3>Management Interface</h3>
+          <p>Configure plugin settings and manage cases from here.</p>
+        </div>
+      )}
 
-          <EuiPageContent>
-            <EuiPageContentBody>
-              <Routes>
-                <Route path="/cases" element={<CasesDashboard />} />
-                <Route path="/cases/new" element={<CreateCase />} />
-                <Route path="/cases/:id" element={<CaseDetail />} />
-                <Route path="/cases/:id/edit" element={<EditCase />} />
-                <Route path="/alerts" element={<AlertsManagement />} />
-                <Route path="/" element={<Navigate to="/cases" replace />} />
-              </Routes>
-            </EuiPageContentBody>
-          </EuiPageContent>
-        </EuiPageBody>
-      </EuiPage>
+      <div style={{ marginTop: '20px' }}>
+        <h2>Cases Dashboard</h2>
+        <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '4px' }}>
+          <p>Cases functionality will be implemented here.</p>
+          <p>This plugin provides:</p>
+          <ul>
+            <li>Case creation and management</li>
+            <li>Alert integration</li>
+            <li>Visualization embedding</li>
+            <li>User assignment and tracking</li>
+          </ul>
+        </div>
+      </div>
 
-      <EuiGlobalToastList
-        toasts={toasts}
-        dismissToast={removeToast}
-        toastLifeTimeMs={6000}
-      />
-    </CasesProvider>
+      <div style={{ marginTop: '20px' }}>
+        <h2>System Information</h2>
+        <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '4px' }}>
+          <p><strong>Plugin Version:</strong> 2.19.1</p>
+          <p><strong>OpenSearch Compatible:</strong> 2.19.1</p>
+          <p><strong>Status:</strong> Active</p>
+        </div>
+      </div>
+    </div>
   );
 };
