@@ -1,0 +1,57 @@
+{
+  "name": "opensearch-cases-plugin",
+  "version": "2.19.1",
+  "description": "OpenSearch Cases management plugin for incident response and case tracking",
+  "main": "build/opensearch_cases_plugin.js",
+  "scripts": {
+    "build": "node build.js",
+    "build:manual": "./build.sh",
+    "dev": "echo 'Development mode - link plugin to OpenSearch Dashboard and run yarn start from OSD root'",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint --ext .js,.ts,.tsx public server",
+    "lint:fix": "eslint --ext .js,.ts,.tsx public server --fix",
+    "package": "node build.js",
+    "clean": "rm -rf build target dist node_modules"
+  },
+  "keywords": [
+    "opensearch",
+    "cases",
+    "incident",
+    "response",
+    "management"
+  ],
+  "author": "OpenSearch Team",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.8.0",
+    "@opensearch-project/opensearch": "^2.4.0",
+    "axios": "^1.6.0",
+    "moment": "^2.29.4",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/lodash": "^4.14.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "eslint-plugin-react": "^7.32.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "jest": "^29.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "opensearchDashboardsPlugin": {
+    "id": "opensearchCases",
+    "version": "2.19.1",
+    "opensearchDashboardsVersion": "2.19.1",
+    "server": true,
+    "ui": true
+  }
+}
