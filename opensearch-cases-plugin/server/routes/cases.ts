@@ -38,42 +38,64 @@ export function registerCasesRoutes(router: IRouter, casesService: CasesService)
     }
   );
 
-  // Get cases
+  // Get all cases
   router.get(
     {
       path: '/api/cases',
       validate: {
         query: schema.object({
-          status: schema.maybe(schema.oneOf([
-            schema.literal('open'),
-            schema.literal('in_progress'),
-            schema.literal('closed'),
-          ])),
-          priority: schema.maybe(schema.oneOf([
-            schema.literal('low'),
-            schema.literal('medium'),
-            schema.literal('high'),
-            schema.literal('critical'),
-          ])),
-          assigned_to: schema.maybe(schema.string()),
-          created_by: schema.maybe(schema.string()),
+          page: schema.maybe(schema.number()),
+          per_page: schema.maybe(schema.number()),
+          sort_field: schema.maybe(schema.string()),
+          sort_order: schema.maybe(schema.string()),
           search: schema.maybe(schema.string()),
-          limit: schema.maybe(schema.number()),
-          offset: schema.maybe(schema.number()),
+          status: schema.maybe(schema.string()),
+          priority: schema.maybe(schema.string()),
+          tags: schema.maybe(schema.arrayOf(schema.string())),
+          assigned_to: schema.maybe(schema.string()),
+          from: schema.maybe(schema.string()),
+          to: schema.maybe(schema.string()),
         }),
       },
     },
-    async (context, request, response) => {
+    async (context: any, request: any, response: any) => {
       try {
-        const cases = await casesService.getCases(request.query);
-        return response.ok({
-          body: cases,
+        const {
+          page = 1,
+          per_page = 20,
+          sort_field = 'created_at',
+          sort_order = 'desc',
+          search,
+          status,
+          priority,
+          tags,
+          assigned_to,
+          from,
+          to,
+        } = request.query;
+
+        const result = await casesService.getCases({
+          page,
+          per_page,
+          sort_field,
+          sort_order,
+          search,
+          status,
+          priority,
+          tags,
+          assigned_to,
+          from,
+          to,
         });
+
+        return response.ok({ body: result });
       } catch (error) {
-        logger.error('Error getting cases:', error);
         return response.customError({
           statusCode: 500,
-          body: { message: 'Error getting cases' },
+          body: {
+            message: 'Failed to retrieve cases',
+            error: error.message,
+          },
         });
       }
     }
