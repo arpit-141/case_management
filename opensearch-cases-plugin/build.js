@@ -51,11 +51,7 @@ function main() {
   // Build the plugin
   log('Building the plugin...', 'yellow');
   
-  // Create build directory structure
-  const buildPluginDir = path.join(BUILD_DIR, PLUGIN_NAME);
-  fs.mkdirSync(buildPluginDir, { recursive: true });
-
-  // Copy essential files
+  // Copy essential files directly to build directory (not in subdirectory)
   const filesToCopy = [
     'opensearch_dashboards_plugin.json',
     'package.json',
@@ -64,34 +60,39 @@ function main() {
 
   filesToCopy.forEach(file => {
     if (fs.existsSync(file)) {
-      fs.copyFileSync(file, path.join(buildPluginDir, file));
+      fs.copyFileSync(file, path.join(BUILD_DIR, file));
     }
   });
 
-  // Copy directories
+  // Copy directories directly to build directory
   const dirsToCopy = ['public', 'server'];
   dirsToCopy.forEach(dir => {
     if (fs.existsSync(dir)) {
-      fs.cpSync(dir, path.join(buildPluginDir, dir), { recursive: true });
+      fs.cpSync(dir, path.join(BUILD_DIR, dir), { recursive: true });
     }
   });
 
-  // Create the zip file
+  // Create the zip file with files at root level
   log('Creating distribution zip...', 'yellow');
   const zipName = `${PLUGIN_NAME}-${PLUGIN_VERSION}.zip`;
   const currentDir = process.cwd();
   
+  // Change to build directory and zip all contents
   process.chdir(BUILD_DIR);
-  executeCommand(`zip -r ../${DIST_DIR}/${zipName} ${PLUGIN_NAME}/`);
+  executeCommand(`zip -r ../${DIST_DIR}/${zipName} .`);
   process.chdir(currentDir);
 
   log('Build completed successfully!', 'green');
   log(`Distribution zip created: ${DIST_DIR}/${zipName}`, 'green');
 
+  // Verify the zip contents
+  log('Verifying zip contents...', 'yellow');
+  executeCommand(`unzip -l ${DIST_DIR}/${zipName}`);
+
   // Display installation instructions
   log('Installation Instructions:', 'green');
   log(`1. Copy the ${zipName} file to your OpenSearch Dashboard server`);
-  log(`2. Run: ./bin/opensearch-dashboards-plugin install file:///path/to/${zipName}`);
+  log(`2. Run: ./bin/opensearch-dashboards-plugin install file:///path/to/${zipName} --allow-root`);
   log('3. Restart OpenSearch Dashboard');
   log('4. Access the plugin through OpenSearch Dashboard UI');
 }
