@@ -1,8 +1,8 @@
-import { CoreSetup, CoreStart, Plugin } from '../../../src/core/public';
-import { NavigationPublicPluginStart } from '../../../src/plugins/navigation/public';
-import { DataPublicPluginStart } from '../../../src/plugins/data/public';
-import { VisualizationsStart } from '../../../src/plugins/visualizations/public';
-import { DashboardStart } from '../../../src/plugins/dashboard/public';
+import { CoreSetup, CoreStart, Plugin } from '../../../../src/core/public';
+import { NavigationPublicPluginStart } from '../../../../src/plugins/navigation/public';
+import { DataPublicPluginStart } from '../../../../src/plugins/data/public';
+import { VisualizationsStart } from '../../../../src/plugins/visualizations/public';
+import { DashboardStart } from '../../../../src/plugins/dashboard/public';
 
 export interface OpenSearchCasesPluginSetup {}
 export interface OpenSearchCasesPluginStart {}
@@ -38,16 +38,18 @@ export class OpenSearchCasesPlugin
     });
 
     // Register management section
-    core.management.sections.section.opensearch.registerApp({
-      id: 'opensearch_cases',
-      title: 'Cases',
-      order: 30,
-      async mount(params) {
-        const { renderManagementApp } = await import('./management');
-        const [coreStart, depsStart] = await core.getStartServices();
-        return renderManagementApp(coreStart, depsStart as OpenSearchCasesPluginStartDeps, params);
-      },
-    });
+    if (core.management?.sections?.section?.opensearch) {
+      core.management.sections.section.opensearch.registerApp({
+        id: 'opensearch_cases',
+        title: 'Cases',
+        order: 30,
+        async mount(params) {
+          const { renderManagementApp } = await import('./management');
+          const [coreStart, depsStart] = await core.getStartServices();
+          return renderManagementApp(coreStart, depsStart as OpenSearchCasesPluginStartDeps, params);
+        },
+      });
+    }
 
     return {};
   }
