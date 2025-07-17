@@ -1,6 +1,6 @@
-import { schema } from '@osd/config-schema';
-import { IRouter } from '../../../../src/core/server';
-import { ServiceDependencies } from '../types';
+import { schema } from '../types/opensearch';
+import { IRouter } from '../types/opensearch';
+import { CasesService } from '../services/cases_service';
 
 export function registerCasesRoutes(router: IRouter, { casesService, logger }: ServiceDependencies) {
   // Create case
