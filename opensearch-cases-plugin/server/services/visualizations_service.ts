@@ -1,4 +1,4 @@
-import { Logger } from '../../../../src/core/server';
+import { Logger } from '../types/opensearch';
 import { Visualization } from '../types';
 
 export class VisualizationsService {
