@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 class CasesAPITester:
-    def __init__(self, base_url="https://4d6e098b-ca1b-4769-858d-dc03e50833dc.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://52034413-fb51-406c-8c86-c50ed4f47004.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.tests_run = 0
         self.tests_passed = 0
