@@ -1,8 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { Router } from 'react-router-dom';
-import { I18nProvider } from '@osd/i18n/react';
-import { CoreStart, AppMountParameters } from '../../../../src/core/public';
+import { BrowserRouter } from 'react-router-dom';
+import { I18nProvider } from '../types/opensearch';
+import { CoreStart, AppMountParameters } from '../types/opensearch';
 import { OpenSearchCasesPluginStartDeps } from './plugin';
 import { CasesApp } from './components/CasesApp';
 
@@ -13,7 +13,7 @@ export const renderApp = (
 ) => {
   ReactDOM.render(
     <I18nProvider>
-      <Router history={history}>
+      <BrowserRouter>
         <CasesApp
           basename={appBasePath}
           notifications={coreStart.notifications}
@@ -23,7 +23,7 @@ export const renderApp = (
           visualizations={depsStart.visualizations}
           dashboard={depsStart.dashboard}
         />
-      </Router>
+      </BrowserRouter>
     </I18nProvider>,
     element
   );
