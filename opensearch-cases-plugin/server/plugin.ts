@@ -5,7 +5,7 @@ import {
   Plugin,
   Logger,
   IRouter,
-} from '../../../src/core/server';
+} from '../../../../src/core/server';
 import { OpenSearchCasesPluginSetup, OpenSearchCasesPluginStart } from './types';
 import { defineRoutes } from './routes';
 import { CasesService } from './services/cases_service';
@@ -30,9 +30,9 @@ export class OpenSearchCasesPlugin
     this.router = core.http.createRouter();
     
     // Initialize services
-    this.casesService = new CasesService(core.opensearch.client, this.logger);
-    this.alertsService = new AlertsService(core.opensearch.client, this.logger);
-    this.visualizationsService = new VisualizationsService(core.opensearch.client, this.logger);
+    this.casesService = new CasesService(core.opensearch.legacy.client!, this.logger);
+    this.alertsService = new AlertsService(core.opensearch.legacy.client!, this.logger);
+    this.visualizationsService = new VisualizationsService(core.opensearch.legacy.client!, this.logger);
 
     // Define routes
     defineRoutes(this.router, {
