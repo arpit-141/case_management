@@ -1,97 +1,34 @@
-import React, { createContext, useContext, useReducer, useCallback } from 'react';
-import { CoreStart } from '../../../../src/core/public';
-import { NavigationPublicPluginStart } from '../../../../src/plugins/navigation/public';
-import { DataPublicPluginStart } from '../../../../src/plugins/data/public';
-import { VisualizationsStart } from '../../../../src/plugins/visualizations/public';
-import { DashboardStart } from '../../../../src/plugins/dashboard/public';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { CoreStart, NavigationPublicPluginStart, DataPublicPluginStart, VisualizationsStart, DashboardStart } from '../types/opensearch';
 
 interface CasesContextType {
   cases: any[];
-  currentCase: any;
   loading: boolean;
   error: string | null;
-  filters: any;
-  stats: any;
-  fetchCases: (filters?: any) => Promise<void>;
-  fetchCase: (id: string) => Promise<void>;
-  createCase: (caseData: any) => Promise<any>;
-  updateCase: (id: string, updates: any) => Promise<any>;
+  createCase: (caseData: any) => Promise<void>;
+  updateCase: (id: string, updates: any) => Promise<void>;
   deleteCase: (id: string) => Promise<void>;
-  setFilters: (filters: any) => void;
-  fetchStats: () => Promise<void>;
-  setError: (error: string | null) => void;
-  http: CoreStart['http'];
-  notifications: CoreStart['notifications'];
-  data: DataPublicPluginStart;
-  visualizations: VisualizationsStart;
-  dashboard: DashboardStart;
+  fetchCases: () => Promise<void>;
 }
 
-const CasesContext = createContext<CasesContextType | null>(null);
+const CasesContext = createContext<CasesContextType | undefined>(undefined);
+
+export const useCases = () => {
+  const context = useContext(CasesContext);
+  if (!context) {
+    throw new Error('useCases must be used within a CasesProvider');
+  }
+  return context;
+};
 
 interface CasesProviderProps {
-  children: React.ReactNode;
-  http: CoreStart['http'];
-  notifications: CoreStart['notifications'];
+  children: ReactNode;
+  http: any;
+  notifications: any;
   data: DataPublicPluginStart;
   visualizations: VisualizationsStart;
   dashboard: DashboardStart;
 }
-
-const initialState = {
-  cases: [],
-  currentCase: null,
-  loading: false,
-  error: null,
-  filters: {
-    status: '',
-    priority: '',
-    assigned_to: '',
-    search: ''
-  },
-  stats: {
-    total_cases: 0,
-    open_cases: 0,
-    in_progress_cases: 0,
-    closed_cases: 0,
-    priority_stats: {},
-    total_alerts: 0,
-    alert_severity_stats: {},
-    alert_status_stats: {}
-  }
-};
-
-const casesReducer = (state: any, action: any) => {
-  switch (action.type) {
-    case 'SET_LOADING':
-      return { ...state, loading: action.payload };
-    case 'SET_ERROR':
-      return { ...state, error: action.payload, loading: false };
-    case 'SET_CASES':
-      return { ...state, cases: action.payload, loading: false, error: null };
-    case 'SET_CURRENT_CASE':
-      return { ...state, currentCase: action.payload, loading: false, error: null };
-    case 'ADD_CASE':
-      return { ...state, cases: [action.payload, ...state.cases] };
-    case 'UPDATE_CASE':
-      return {
-        ...state,
-        cases: state.cases.map((c: any) => c.id === action.payload.id ? action.payload : c),
-        currentCase: state.currentCase?.id === action.payload.id ? action.payload : state.currentCase
-      };
-    case 'DELETE_CASE':
-      return {
-        ...state,
-        cases: state.cases.filter((c: any) => c.id !== action.payload)
-      };
-    case 'SET_FILTERS':
-      return { ...state, filters: { ...state.filters, ...action.payload } };
-    case 'SET_STATS':
-      return { ...state, stats: action.payload };
-    default:
-      return state;
-  }
-};
 
 export const CasesProvider: React.FC<CasesProviderProps> = ({
   children,
@@ -101,122 +38,87 @@ export const CasesProvider: React.FC<CasesProviderProps> = ({
   visualizations,
   dashboard,
 }) => {
-  const [state, dispatch] = useReducer(casesReducer, initialState);
+  const [cases, setCases] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const setLoading = useCallback((loading: boolean) => {
-    dispatch({ type: 'SET_LOADING', payload: loading });
-  }, []);
-
-  const setError = useCallback((error: string | null) => {
-    dispatch({ type: 'SET_ERROR', payload: error });
-  }, []);
-
-  const fetchCases = useCallback(async (filters = {}) => {
+  const fetchCases = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const params = new URLSearchParams();
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value as string);
-      });
-      
-      const response = await http.get(`/api/cases?${params}`);
-      dispatch({ type: 'SET_CASES', payload: response.data });
-    } catch (error) {
+      // Implement API call to fetch cases
+      // const response = await http.get('/api/cases');
+      // setCases(response.data);
+      setCases([]);
+    } catch (err) {
       setError('Failed to fetch cases');
+      console.error('Error fetching cases:', err);
+    } finally {
+      setLoading(false);
     }
-  }, [http, setLoading, setError]);
+  };
 
-  const fetchCase = useCallback(async (id: string) => {
+  const createCase = async (caseData: any) => {
     setLoading(true);
+    setError(null);
     try {
-      const response = await http.get(`/api/cases/${id}`);
-      dispatch({ type: 'SET_CURRENT_CASE', payload: response.data });
-    } catch (error) {
-      setError('Failed to fetch case');
-    }
-  }, [http, setLoading, setError]);
-
-  const createCase = useCallback(async (caseData: any) => {
-    setLoading(true);
-    try {
-      const response = await http.post('/api/cases', caseData);
-      dispatch({ type: 'ADD_CASE', payload: response.data });
-      notifications.toasts.addSuccess('Case created successfully');
-      return response.data;
-    } catch (error) {
+      // Implement API call to create case
+      // const response = await http.post('/api/cases', caseData);
+      // setCases([...cases, response.data]);
+      console.log('Creating case:', caseData);
+    } catch (err) {
       setError('Failed to create case');
-      notifications.toasts.addError(error, { title: 'Error creating case' });
-      throw error;
+      console.error('Error creating case:', err);
+    } finally {
+      setLoading(false);
     }
-  }, [http, setLoading, setError, notifications]);
+  };
 
-  const updateCase = useCallback(async (id: string, updates: any) => {
+  const updateCase = async (id: string, updates: any) => {
     setLoading(true);
+    setError(null);
     try {
-      const response = await http.put(`/api/cases/${id}`, updates);
-      dispatch({ type: 'UPDATE_CASE', payload: response.data });
-      notifications.toasts.addSuccess('Case updated successfully');
-      return response.data;
-    } catch (error) {
+      // Implement API call to update case
+      // const response = await http.put(`/api/cases/${id}`, updates);
+      // setCases(cases.map(c => c.id === id ? response.data : c));
+      console.log('Updating case:', id, updates);
+    } catch (err) {
       setError('Failed to update case');
-      notifications.toasts.addError(error, { title: 'Error updating case' });
-      throw error;
+      console.error('Error updating case:', err);
+    } finally {
+      setLoading(false);
     }
-  }, [http, setLoading, setError, notifications]);
+  };
 
-  const deleteCase = useCallback(async (id: string) => {
+  const deleteCase = async (id: string) => {
     setLoading(true);
+    setError(null);
     try {
-      await http.delete(`/api/cases/${id}`);
-      dispatch({ type: 'DELETE_CASE', payload: id });
-      notifications.toasts.addSuccess('Case deleted successfully');
-    } catch (error) {
+      // Implement API call to delete case
+      // await http.delete(`/api/cases/${id}`);
+      // setCases(cases.filter(c => c.id !== id));
+      console.log('Deleting case:', id);
+    } catch (err) {
       setError('Failed to delete case');
-      notifications.toasts.addError(error, { title: 'Error deleting case' });
+      console.error('Error deleting case:', err);
+    } finally {
+      setLoading(false);
     }
-  }, [http, setLoading, setError, notifications]);
+  };
 
-  const setFilters = useCallback((filters: any) => {
-    dispatch({ type: 'SET_FILTERS', payload: filters });
-  }, []);
-
-  const fetchStats = useCallback(async () => {
-    try {
-      const response = await http.get('/api/stats');
-      dispatch({ type: 'SET_STATS', payload: response.data });
-    } catch (error) {
-      setError('Failed to fetch statistics');
-    }
-  }, [http, setError]);
-
-  const value = {
-    ...state,
-    fetchCases,
-    fetchCase,
+  const contextValue: CasesContextType = {
+    cases,
+    loading,
+    error,
     createCase,
     updateCase,
     deleteCase,
-    setFilters,
-    fetchStats,
-    setError,
-    http,
-    notifications,
-    data,
-    visualizations,
-    dashboard,
+    fetchCases,
   };
 
   return (
-    <CasesContext.Provider value={value}>
+    <CasesContext.Provider value={contextValue}>
       {children}
     </CasesContext.Provider>
   );
-};
-
-export const useCases = () => {
-  const context = useContext(CasesContext);
-  if (!context) {
-    throw new Error('useCases must be used within a CasesProvider');
-  }
-  return context;
 };
