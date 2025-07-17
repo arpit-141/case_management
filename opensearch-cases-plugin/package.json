@@ -4,15 +4,15 @@
   "description": "OpenSearch Cases management plugin for incident response and case tracking",
   "main": "build/opensearch_cases_plugin.js",
   "scripts": {
-    "build": "osd plugin build",
-    "dev": "osd plugin start",
+    "build": "node build.js",
+    "build:manual": "./build.sh",
+    "dev": "echo 'Development mode - link plugin to OpenSearch Dashboard and run yarn start from OSD root'",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint --ext .js,.ts,.tsx public server",
     "lint:fix": "eslint --ext .js,.ts,.tsx public server --fix",
-    "prepack": "yarn build",
-    "package": "osd plugin package",
-    "clean": "rm -rf build target"
+    "package": "node build.js",
+    "clean": "rm -rf build target dist node_modules"
   },
   "keywords": [
     "opensearch",
@@ -27,7 +27,6 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.8.0",
-    "@opensearch-project/oui": "^1.7.0",
     "@opensearch-project/opensearch": "^2.4.0",
     "axios": "^1.6.0",
     "moment": "^2.29.4",
@@ -43,12 +42,7 @@
     "eslint-plugin-react": "^7.32.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "jest": "^29.0.0",
-    "typescript": "^5.0.0",
-    "webpack": "^5.0.0",
-    "@osd/plugin-helpers": "2.19.1",
-    "ts-loader": "^9.4.0",
-    "style-loader": "^3.3.0",
-    "css-loader": "^6.8.0"
+    "typescript": "^5.0.0"
   },
   "engines": {
     "node": "18.x"
