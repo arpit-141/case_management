@@ -190,22 +190,25 @@ export function registerCasesRoutes(router: IRouter, casesService: CasesService)
         }),
       },
     },
-    async (context, request, response) => {
+    async (context: any, request: any, response: any) => {
       try {
-        await casesService.deleteCase(request.params.id);
-        return response.ok({
-          body: { message: 'Case deleted successfully' },
-        });
-      } catch (error) {
-        logger.error('Error deleting case:', error);
-        if (error.statusCode === 404) {
+        const { id } = request.params;
+        const result = await casesService.deleteCase(id);
+
+        if (!result) {
           return response.notFound({
             body: { message: 'Case not found' },
           });
         }
+
+        return response.ok({ body: { message: 'Case deleted successfully' } });
+      } catch (error) {
         return response.customError({
           statusCode: 500,
-          body: { message: 'Error deleting case' },
+          body: {
+            message: 'Failed to delete case',
+            error: error.message,
+          },
         });
       }
     }
