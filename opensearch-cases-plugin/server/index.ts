@@ -1,4 +1,4 @@
-import { PluginInitializerContext } from '../../../../src/core/server';
+import { PluginInitializerContext } from '../types/opensearch';
 import { OpenSearchCasesPlugin } from './plugin';
 
 export function plugin(initializerContext: PluginInitializerContext) {
