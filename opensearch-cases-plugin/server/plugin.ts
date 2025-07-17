@@ -5,7 +5,7 @@ import {
   Plugin,
   Logger,
   IRouter,
-} from '../../../../src/core/server';
+} from '../types/opensearch';
 import { OpenSearchCasesPluginSetup, OpenSearchCasesPluginStart } from './types';
 import { defineRoutes } from './routes';
 import { CasesService } from './services/cases_service';
