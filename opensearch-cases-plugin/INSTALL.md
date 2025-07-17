@@ -13,12 +13,12 @@ The OpenSearch Cases Plugin is now ready for installation on OpenSearch 2.19.1!
 1. **Download the plugin**:
    ```bash
    # The plugin zip file is located at:
-   # /app/opensearch-cases-plugin/dist/opensearch-cases-plugin-2.19.1.zip
+   # /app/opensearch-cases-plugin-2.19.1.zip
    ```
 
 2. **Install the plugin**:
    ```bash
-   ./bin/opensearch-dashboards-plugin install file:///path/to/opensearch-cases-plugin-2.19.1.zip
+   ./bin/opensearch-dashboards-plugin install file:///path/to/opensearch-cases-plugin-2.19.1.zip --allow-root
    ```
 
 3. **Restart OpenSearch Dashboard**:
@@ -92,6 +92,11 @@ If installation fails:
    tail -f /var/log/opensearch-dashboards/opensearch-dashboards.log
    ```
 
+4. **Common Issues**:
+   - **"No opensearch-dashboards plugins found in archive"**: This was a structure issue that has been fixed. The new zip file has the correct root-level structure.
+   - **Permission errors**: Make sure to use `--allow-root` flag if running as root
+   - **Version mismatch**: Ensure OpenSearch Dashboard is exactly version 2.19.1
+
 ### Uninstallation
 
 To remove the plugin:
@@ -110,3 +115,8 @@ For issues or questions:
 ---
 
 **Status**: ✅ Plugin is fully compatible with OpenSearch 2.19.1 and ready for production use!
+
+**Fixed Issues**:
+- ✅ Corrected zip file structure (plugin files now at root level)
+- ✅ Fixed installation command with `--allow-root` flag
+- ✅ Updated all documentation with proper installation instructions
