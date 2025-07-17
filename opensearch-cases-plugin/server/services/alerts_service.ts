@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Logger } from '../../../../src/core/server';
+import { Logger } from '../types/opensearch';
 import { Alert, AlertCreateRequest } from '../types';
 
 export class AlertsService {
